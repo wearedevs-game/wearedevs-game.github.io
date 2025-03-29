@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1"
+    />
+    <title>Terminal Tycoon – Infinite Challenge</title>
+    <style>
+      /* Global Terminal Styles */
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: "Courier New", Courier, monospace;
+        background: #0d0d0d;
+        color: #33ff33;
+        overflow: hidden;
+      }
+      h1,
+      h2 {
+        text-align: center;
+      }
+      .container {
+        max-width: 1000px;
+        margin: 20px auto;
+        padding: 20px;
+        background: rgba(0, 0, 0, 0.95);
+        border-radius: 8px;
+        box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+      }
+      /* Form & Button Styles */
+      input[type="text"],
+      input[type="password"] {
+        width: 100%;
+        padding: 12px;
+        margin: 10px 0;
+        border: 1px solid #004400;
+        border-radius: 4px;
+        background: #111;
+        color: #33ff33;
+        font-size: 1rem;
+      }
+      button {
+        width: 100%;
+        padding: 12px;
+        background: #004400;
+        border: none;
+        border-radius: 4px;
+        color: #33ff33;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: background 0.3s ease;
+      }
+      button:hover {
+        background: #006600;
+      }
+      a {
+        color: #33ff33;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      /* Terminal Output & Command Area */
+      #output {
+        border: 1px solid #004400;
+        padding: 10px;
+        margin-top: 10px;
+        height: 250px;
+        overflow-y: auto;
+        background: #000;
+        font-family: "Courier New", Courier, monospace;
+        font-size: 0.95rem;
+        white-space: pre-wrap;
+      }
+      #commands {
+        display: flex;
+        gap: 10px;
+        margin: 20px 0;
+      }
+      #command-input {
+        flex-grow: 1;
+        padding: 10px;
+        font-size: 1rem;
+        background: #111;
+        color: #33ff33;
+        border: 1px solid #004400;
+        border-radius: 4px;
+      }
+      /* Chat Room Styles */
+      #chat-container {
+        margin-top: 20px;
+        border: 1px solid #004400;
+        padding: 10px;
+        height: 200px;
+        background: #000;
+        overflow-y: auto;
+        font-family: "Courier New", Courier, monospace;
+        white-space: pre-wrap;
+      }
+      #chat-input {
+        width: calc(100% - 100px);
+        padding: 10px;
+        font-size: 1rem;
+        background: #111;
+        color: #33ff33;
+        border: 1px solid #004400;
+        border-radius: 4px;
+      }
+      #chat-btn {
+        width: 80px;
+        padding: 10px;
+        background: #004400;
+        border: none;
+        border-radius: 4px;
+        color: #33ff33;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+      /* Event Section Styles */
+      #event-container {
+        margin-top: 20px;
+        border: 1px solid #004400;
+        padding: 10px;
+        background: #000;
+        font-family: "Courier New", Courier, monospace;
+        white-space: pre-wrap;
+      }
+      /* Header & Info */
+      #game-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Login / Signup Section -->
+    <div id="login-container" class="container">
+      <h1>Terminal Tycoon</h1>
+      <div id="auth-section">
+        <div id="login-form">
+          <h2>Login</h2>
+          <input type="text" id="login-username" placeholder="Username" />
+          <input type="password" id="login-password" placeholder="Password" />
+          <button id="login-btn">Login</button>
+          <p>
+            Don't have an account?
+            <a href="#" id="show-signup">Sign up</a>
+          </p>
+        </div>
+        <div id="signup-form" style="display: none;">
+          <h2>Sign Up</h2>
+          <input type="text" id="signup-username" placeholder="Username" />
+          <input type="password" id="signup-password" placeholder="Password" />
+          <button id="signup-btn">Sign Up</button>
+          <p>
+            Already have an account?
+            <a href="#" id="show-login">Login</a>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Section -->
+    <div id="game-container" class="container" style="display: none;">
+      <div id="game-header">
+        <span id="user-info"></span>
+        <button id="logout-btn">Logout</button>
+      </div>
+      <div id="game-area">
+        <h2>Welcome to Terminal Tycoon – The Infinite Challenge</h2>
+        <div id="stats">
+          <p>Coins: <span id="coins">1000</span></p>
+          <p>Reputation: <span id="reputation">0</span></p>
+          <p>Level: <span id="level">1</span></p>
+        </div>
+        <!-- Command Input Area -->
+        <div id="commands">
+          <input
+            type="text"
+            id="command-input"
+            placeholder="Enter command here..."
+            autofocus
+          />
+          <button id="command-btn">Execute</button>
+        </div>
+        <!-- Terminal Output -->
+        <div id="output"></div>
+        <!-- Chat Room -->
+        <h3>Global Chat</h3>
+        <div id="chat-container"></div>
+        <div id="chat-controls">
+          <input type="text" id="chat-input" placeholder="Type your message..." />
+          <button id="chat-btn">Send</button>
+        </div>
+        <!-- Event Section -->
+        <h3>Current Events</h3>
+        <div id="event-container">
+          <p>No events available. Use command <code>-event list</code> to refresh.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Firebase & Game Script -->
+    <script type="module">
+      // ==== Firebase Setup (ES Modules) ====
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+      import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics.js";
+      import {
+        getAuth,
+        createUserWithEmailAndPassword,
+        signInWithEmailAndPassword,
+        signOut,
+      } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+      import {
+        getFirestore,
+        doc,
+        setDoc,
+        getDoc,
+        updateDoc,
+        collection,
+        addDoc,
+        onSnapshot,
+        query,
+        orderBy,
+      } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+      // Firebase configuration (replace with your own if needed)
+      const firebaseConfig = {
+        apiKey: "AIzaSyBe3u3Tpynd61CHmCpbzGfLbgQGg0CykSY",
+        authDomain: "terminaltycoon.firebaseapp.com",
+        projectId: "terminaltycoon",
+        storageBucket: "terminaltycoon.firebasestorage.app",
+        messagingSenderId: "919566219014",
+        appId: "1:919566219014:web:d9b6dfe5a37cf1e6385087",
+        measurementId: "G-WE0XVY96WT",
+      };
+
+      // Initialize Firebase
+      const app = initializeApp(firebaseConfig);
+      const analytics = getAnalytics(app);
+      const auth = getAuth();
+      const db = getFirestore();
+
+      // ==== DOM Elements ====
+      const loginContainer = document.getElementById("login-container");
+      const gameContainer = document.getElementById("game-container");
+      const loginForm = document.getElementById("login-form");
+      const signupForm = document.getElementById("signup-form");
+      const showSignupLink = document.getElementById("show-signup");
+      const showLoginLink = document.getElementById("show-login");
+      const loginBtn = document.getElementById("login-btn");
+      const signupBtn = document.getElementById("signup-btn");
+      const logoutBtn = document.getElementById("logout-btn");
+      const loginUsername = document.getElementById("login-username");
+      const loginPassword = document.getElementById("login-password");
+      const signupUsername = document.getElementById("signup-username");
+      const signupPassword = document.getElementById("signup-password");
+      const userInfo = document.getElementById("user-info");
+      const coinsDisplay = document.getElementById("coins");
+      const reputationDisplay = document.getElementById("reputation");
+      const levelDisplay = document.getElementById("level");
+      const commandInput = document.getElementById("command-input");
+      const commandBtn = document.getElementById("command-btn");
+      const outputDiv = document.getElementById("output");
+      const chatContainer = document.getElementById("chat-container");
+      const chatInput = document.getElementById("chat-input");
+      const chatBtn = document.getElementById("chat-btn");
+      const eventContainer = document.getElementById("event-container");
+
+      // ==== UI Toggle for Login/Signup ====
+      showSignupLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        loginForm.style.display = "none";
+        signupForm.style.display = "block";
+      });
+      showLoginLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        signupForm.style.display = "none";
+        loginForm.style.display = "block";
+      });
+
+      // ==== Authentication Functions ====
+      async function login(username, password) {
+        if (!username || !password) {
+          alert("Please enter both username and password.");
+          return;
+        }
+        try {
+          const email = username + "@terminaltycoon.com";
+          await signInWithEmailAndPassword(auth, email, password);
+          loadGame();
+        } catch (error) {
+          alert("Login error: " + error.message);
+        }
+      }
+
+      async function signup(username, password) {
+        if (!username || !password) {
+          alert("Please enter both username and password.");
+          return;
+        }
+        try {
+          const email = username + "@terminaltycoon.com";
+          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          await setDoc(doc(db, "users", userCredential.user.uid), {
+            username: username,
+            coins: 1000,
+            reputation: 0,
+            level: 1,
+          });
+          loadGame();
+        } catch (error) {
+          alert("Sign up error: " + error.message);
+        }
+      }
+
+      loginBtn.addEventListener("click", () => {
+        login(loginUsername.value.trim(), loginPassword.value);
+      });
+      signupBtn.addEventListener("click", () => {
+        signup(signupUsername.value.trim(), signupPassword.value);
+      });
+      logoutBtn.addEventListener("click", async () => {
+        await signOut(auth);
+        location.reload();
+      });
+
+      // ==== Real-Time Chat Listener ====
+      const chatQuery = query(collection(db, "chat"), orderBy("timestamp", "asc"));
+      onSnapshot(chatQuery, (snapshot) => {
+        chatContainer.innerHTML = "";
+        snapshot.forEach((doc) => {
+          const msg = doc.data();
+          chatContainer.innerHTML += `[${new Date(msg.timestamp.toDate()).toLocaleTimeString()}] ${msg.username}: ${msg.message}\n`;
+        });
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      });
+
+      // ==== Send Chat Message ====
+      chatBtn.addEventListener("click", async () => {
+        const message = chatInput.value.trim();
+        if (!message) return;
+        const uid = auth.currentUser.uid;
+        const userDocSnap = await getDoc(doc(db, "users", uid));
+        const username = userDocSnap.data().username;
+        await addDoc(collection(db, "chat"), {
+          username,
+          message,
+          timestamp: new Date(),
+        });
+        chatInput.value = "";
+      });
+
+      // ==== Game Initialization & Data Loading ====
+      async function loadGame() {
+        loginContainer.style.display = "none";
+        gameContainer.style.display = "block";
+        const uid = auth.currentUser.uid;
+        const userDocSnap = await getDoc(doc(db, "users", uid));
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          userInfo.innerText = "User: " + userData.username;
+          updateStats(userData);
+          appendOutput("Welcome back, " + userData.username + "!");
+          // Refresh events list when game loads
+          loadEvents();
+        } else {
+          appendOutput("User data not found.");
+        }
+      }
+
+      function updateStats(data) {
+        coinsDisplay.innerText = data.coins;
+        reputationDisplay.innerText = data.reputation;
+        levelDisplay.innerText = data.level;
+      }
+
+      // ==== Event System (Load & Join Events) ====
+      async function loadEvents() {
+        // For simplicity, we assume events are stored in "events" collection with a field "description" and "active" flag.
+        const eventsQuery = query(collection(db, "events"));
+        let eventsHTML = "";
+        onSnapshot(eventsQuery, (snapshot) => {
+          snapshot.forEach((doc) => {
+            const ev = doc.data();
+            if (ev.active) {
+              eventsHTML += `[${doc.id}] ${ev.description} | Participants: ${ev.participants || 0}\n`;
+            }
+          });
+          eventContainer.innerText = eventsHTML || "No active events. Use -event list to refresh.";
+        });
+      }
+
+      // ==== Command Parser & Commands (Over 100 Commands) ====
+      const commands = {
+        "-help": (params) => {
+          let list = "Available Commands:\n";
+          Object.keys(commands).forEach((cmd) => (list += cmd + "\n"));
+          return list;
+        },
+        "-bet": async (params, userData) => {
+          if (params.length < 1) return "Usage: -bet [amount]";
+          const betAmount = parseInt(params[0]);
+          if (isNaN(betAmount) || betAmount <= 0) return "Invalid bet amount.";
+          if (betAmount > userData.coins) return "Not enough coins.";
+          const win = Math.random() < 0.5;
+          if (win) {
+            userData.coins += betAmount;
+            return `You won ${betAmount} coins!`;
+          } else {
+            userData.coins -= betAmount;
+            return `You lost ${betAmount} coins.`;
+          }
+        },
+        "-hack": (params) => {
+          if (params.length < 1) return "Usage: -hack [target]";
+          return `Hacking ${params[0]}... Success! (Simulated)`;
+        },
+        "-shop": () => "Shop: [Basic Laptop, VPN, Hacker Tool Kit]",
+        "-buy": (params) => (params.length < 1 ? "Usage: -buy [item]" : `You bought ${params[0]}.`),
+        "-sell": (params) => (params.length < 1 ? "Usage: -sell [item]" : `You sold ${params[0]}.`),
+        "-upgrade": (params) => (params.length < 1 ? "Usage: -upgrade [tool]" : `Upgrading ${params[0]}... Done!`),
+        "-faction": (params) => (params.length < 1 ? "Usage: -faction [name]" : `You joined faction ${params[0]}.`),
+        "-mission": (params) => (params.length < 1 ? "Usage: -mission [accept/complete]" : `Mission ${params[0]} executed.`),
+        "-decryption": (params) => (params.length < 1 ? "Usage: -decryption [file]" : `Decrypting ${params[0]}... Data unlocked!`),
+        "-attack": (params) => (params.length < 1 ? "Usage: -attack [player]" : `Attacking ${params[0]}... Duel simulated.`),
+        "-defend": () => "Defensive measures activated.",
+        "-spy": (params) => (params.length < 1 ? "Usage: -spy [target]" : `Spying on ${params[0]}... Intel gathered.`),
+        "-spyreport": () => "Spy Report: All systems nominal.",
+        "-travel": (params) => (params.length < 1 ? "Usage: -travel [zone]" : `Traveling to ${params[0]}... Zone reached.`),
+        "-loot": (params) => (params.length < 1 ? "Usage: -loot [target]" : `Looting ${params[0]}... Items acquired.`),
+        "-chat": (params) => (params.length < 1 ? "Usage: -chat [message]" : `Chat message: ${params.join(" ")}`),
+        "-rank": () => "Leaderboard: (Simulated Rankings)",
+        "-stats": () => "Detailed stats: (Simulated Stats)",
+        "-profile": () => "Profile: (Simulated Profile Info)",
+        "-logout": () => {
+          signOut(auth);
+          location.reload();
+          return "Logging out...";
+        },
+        "-ai": (params) => "AI Response: How can I assist you today?",
+        "-scan": (params) => (params.length < 1 ? "Usage: -scan [target]" : `Scanning ${params[0]}... Vulnerabilities found.`),
+        "-analyze": (params) => (params.length < 1 ? "Usage: -analyze [target]" : `Analyzing ${params[0]}... Analysis complete.`),
+        "-bypass": (params) => (params.length < 1 ? "Usage: -bypass [target]" : `Bypassing ${params[0]}... Access granted.`),
+        "-firewall": () => "Personal firewall activated.",
+        "-encrypt": (params) => (params.length < 1 ? "Usage: -encrypt [data]" : `Encrypting ${params[0]}... Secure.`),
+        "-decrypt": (params) => (params.length < 1 ? "Usage: -decrypt [data]" : `Decrypting ${params[0]}... Data revealed.`),
+        "-compile": () => "Compiling custom hacking script... Complete.",
+        "-debug": () => "Debugging script... No errors found.",
+        "-trace": (params) => (params.length < 1 ? "Usage: -trace [target]" : `Tracing ${params[0]}... Location identified.`),
+        "-ping": (params) => (params.length < 1 ? "Usage: -ping [target]" : `Pinging ${params[0]}... Response time: ${Math.floor(Math.random() * 100)}ms`),
+        "-downtime": (params) => "Downtime history: (Simulated Data)",
+        "-uptime": () => "Uptime: 99.99% (Simulated Data)",
+        "-backup": () => "Backup created successfully.",
+        "-restore": () => "System restored from backup.",
+        "-update": () => "Hacking tools updated to latest version.",
+        "-research": (params) => (params.length < 1 ? "Usage: -research [topic]" : `Researching ${params.join(" ")}... Findings loaded.`),
+        "-exploit": (params) => (params.length < 1 ? "Usage: -exploit [vulnerability]" : `Exploiting ${params[0]}... Vulnerability exploited.`),
+        "-brute": () => "Launching brute-force attack... Password cracked.",
+        "-social": () => "Social engineering attack initiated.",
+        "-firestorm": () => "Firestorm attack launched on high–value target.",
+        "-distract": () => "Diversion created to mask your operations.",
+        "-reroute": () => "Traffic rerouted to avoid detection.",
+        "-sniff": () => "Network sniffing in progress... Data captured.",
+        "-capture": () => "Data packets captured successfully.",
+        "-anonymize": () => "Anonymizing connection... Identity hidden.",
+        "-vpn": () => "VPN enabled.",
+        "-proxy": () => "Proxy chain activated.",
+        "-data": () => "Downloading target data... Complete.",
+        "-upload": (params) => (params.length < 1 ? "Usage: -upload [file]" : `Uploading ${params[0]}... Done.`),
+        "-crack": () => "Cracking encryption... Success.",
+        "-botnet": () => "Botnet deployed to overwhelm target.",
+        "-command": (params) => (params.length < 1 ? "Usage: -command [instruction]" : `Botnet executing command: ${params.join(" ")}`),
+        "-infiltrate": () => "Infiltrating secure system... Access granted.",
+        "-override": () => "Security protocols overridden.",
+        "-reboot": () => "System rebooted.",
+        "-shutdown": () => "Target system shutting down...",
+        "-pingflood": () => "Ping flood attack initiated.",
+        "-dos": () => "DoS attack launched.",
+        "-ddos": () => "DDoS attack in progress.",
+        "-spoof": () => "IP address spoofed.",
+        "-redirect": () => "Network traffic redirected.",
+        "-malware": () => "Malware deployed in target system.",
+        "-ransom": () => "Ransom demand issued.",
+        "-decryptor": () => "Decryptor executed to remove ransomware.",
+        "-bot": () => "AI–driven bot summoned.",
+        "-script": (params) => (params.length < 1 ? "Usage: -script [name]" : `Running script: ${params[0]}`),
+        "-compileai": () => "Compiling AI–assisted script... Complete.",
+        "-simulate": () => "Simulating hacking scenario...",
+        "-debugai": () => "Debugging AI module... No issues found.",
+        "-learn": () => "Learning algorithm activated to improve skills.",
+        "-upgradeai": () => "AI assistant upgraded.",
+        "-codex": () => "Accessing digital codex... Secrets revealed.",
+        "-library": () => "Opening digital library... Cyber lore loaded.",
+        "-forum": () => "Accessing hacker forum... Strategies and gossip loaded.",
+        "-message": (params) => (params.length < 2 ? "Usage: -message [user] [message]" : `Private message sent to ${params[0]}.`),
+        "-broadcast": (params) => (params.length < 1 ? "Usage: -broadcast [message]" : `Broadcasting: ${params.join(" ")}`),
+        "-notify": () => "Checking notifications... None.",
+        "-alert": (params) => (params.length < 1 ? "Usage: -alert [message]" : `Alert sent: ${params.join(" ")}`),
+        "-log": () => "Displaying recent system log... (Simulated Log)",
+        "-history": () => "Command history: (Simulated History)",
+        "-analyzeuser": (params) => (params.length < 1 ? "Usage: -analyzeuser [username]" : `Analysis of ${params[0]} complete: (Simulated Data)`),
+        "-track": (params) => (params.length < 1 ? "Usage: -track [target]" : `Tracking ${params[0]}... Location: (Simulated)`),
+        "-map": () => "Displaying network map... (Simulated Map)",
+        "-geo": () => "Geographical data: (Simulated Data)",
+        "-datamine": () => "Data mining in progress... Insights acquired.",
+        "-extract": (params) => (params.length < 1 ? "Usage: -extract [target]" : `Extracting files from ${params[0]}... Done.`),
+        "-embed": (params) => (params.length < 1 ? "Usage: -embed [code]" : `Embedding code snippet: ${params[0]}`),
+        "-overclock": () => "System overclocked for extra speed.",
+        "-stabilize": () => "System stabilized.",
+        "-boost": () => "Temporary boost activated.",
+        "-disrupt": () => "Target system disrupted.",
+        "-divert": () => "Resources diverted from defense.",
+        "-stealth": () => "Stealth mode activated.",
+        "-recon": () => "Conducting reconnaissance... Intel gathered.",
+        "-intel": () => "Gathering in-depth intelligence... Complete.",
+        "-predict": () => "Predictive analytics complete: (Simulated Forecast)",
+        "-invest": (params) => (params.length < 1 ? "Usage: -invest [amount]" : `Invested ${params[0]} coins in the market.`),
+        "-rebirth": () => "Rebirth initiated: Progress reset with permanent bonuses.",
+        // Event commands:
+        "-event": async (params) => {
+          if (params.length < 1) return "Usage: -event [list/join/create]";
+          const action = params[0].toLowerCase();
+          if (action === "list") {
+            // Simply call loadEvents to refresh event list
+            loadEvents();
+            return "Refreshing event list...";
+          } else if (action === "join") {
+            if (params.length < 2) return "Usage: -event join [eventID]";
+            // For demo, we simulate joining by incrementing a counter in the event doc.
+            const eventId = params[1];
+            const eventRef = doc(db, "events", eventId);
+            const eventSnap = await getDoc(eventRef);
+            if (!eventSnap.exists()) return "Event not found.";
+            let evData = eventSnap.data();
+            evData.participants = (evData.participants || 0) + 1;
+            await updateDoc(eventRef, { participants: evData.participants });
+            loadEvents();
+            return `Joined event ${eventId}. Participants: ${evData.participants}`;
+          } else if (action === "create") {
+            // Create a new event (for testing/demo)
+            const description = params.slice(1).join(" ") || "A new cyber event";
+            const newEvent = await addDoc(collection(db, "events"), {
+              description,
+              active: true,
+              participants: 1,
+            });
+            loadEvents();
+            return `Event created with ID: ${newEvent.id}`;
+          } else {
+            return "Unknown event action. Use list, join, or create.";
+          }
+        },
+      };
+
+      // ==== Generate Extra Dummy Commands to Reach 100+ ====
+      for (let i = 1; i <= 20; i++) {
+        commands["-extra" + i] = (params) => `Extra command ${i} executed with params: ${params.join(" ")}`;
+      }
+
+      // ==== Command Execution ====
+      commandBtn.addEventListener("click", async () => {
+        const fullInput = commandInput.value.trim();
+        if (!fullInput) return;
+        appendOutput("> " + fullInput);
+        const tokens = fullInput.split(" ");
+        const cmd = tokens[0].toLowerCase();
+        const params = tokens.slice(1);
+        const uid = auth.currentUser.uid;
+        const userDocRef = doc(db, "users", uid);
+        const userDocSnap = await getDoc(userDocRef);
+        let userData = userDocSnap.data();
+
+        let response = "";
+        if (commands.hasOwnProperty(cmd)) {
+          response = await commands[cmd](params, userData, userDocRef);
+          // For commands that modify coins, update Firestore
+          await updateDoc(userDocRef, { coins: userData.coins });
+          updateStats(userData);
+        } else {
+          response = "Unknown command. Type -help for a list of commands.";
+        }
+        setTimeout(() => appendOutput(response), 200);
+        commandInput.value = "";
+      });
+
+      // ==== Terminal Output Function ====
+      function appendOutput(text) {
+        const time = new Date().toLocaleTimeString();
+        outputDiv.innerHTML += `[${time}] ${text}\n`;
+        outputDiv.scrollTop = outputDiv.scrollHeight;
+      }
+    </script>
+  </body>
+</html>
