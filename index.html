@@ -43,7 +43,6 @@
         font-size: 1rem;
       }
       button {
-        width: 100%;
         padding: 12px;
         background: #004400;
         border: none;
@@ -181,6 +180,12 @@
         align-items: center;
         margin-bottom: 10px;
       }
+      /* Command Input Container (improved placement) */
+      #command-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
     </style>
   </head>
   <body>
@@ -225,7 +230,7 @@
           <p>Level: <span id="level">1</span></p>
         </div>
         <!-- Command Input Area -->
-        <div id="commands">
+        <div id="command-container">
           <input type="text" id="command-input" placeholder="Enter command here..." autofocus />
           <button id="command-btn">Execute</button>
         </div>
@@ -833,13 +838,19 @@
         }
       };
 
-      // ==== Generate Extra Dummy Commands (Optional) ====
-      for (let i = 1; i <= 10; i++) {
-        commands["-extra" + i] = (params) => `Extra command ${i} executed with params: ${params.join(" ")}`;
-      }
-
       // ==== Command Execution ====
       commandBtn.addEventListener("click", async () => {
+        processCommand();
+      });
+
+      // Allow Enter key to trigger command execution
+      commandInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          processCommand();
+        }
+      });
+
+      async function processCommand() {
         const fullInput = commandInput.value.trim();
         if (!fullInput) return;
         appendOutput("> " + fullInput);
@@ -861,7 +872,7 @@
         }
         setTimeout(() => appendOutput(response), 200);
         commandInput.value = "";
-      });
+      }
 
       // ==== Terminal Output Function ====
       function appendOutput(text) {
