@@ -18,7 +18,8 @@
         overflow: hidden;
       }
       h1,
-      h2 {
+      h2,
+      h3 {
         text-align: center;
       }
       .container {
@@ -127,6 +128,52 @@
         font-family: "Courier New", Courier, monospace;
         white-space: pre-wrap;
       }
+      /* Quest Modal Styles */
+      #quest-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        color: #33ff33;
+        z-index: 1000;
+      }
+      #quest-modal .quest-box {
+        border: 2px solid #33ff33;
+        padding: 20px;
+        background: #111;
+        border-radius: 8px;
+        text-align: center;
+        width: 80%;
+        max-width: 500px;
+      }
+      #quest-timer {
+        font-size: 1.5rem;
+        margin-bottom: 10px;
+      }
+      /* Leaderboard Section */
+      #leaderboard-container {
+        margin-top: 20px;
+        border: 1px solid #004400;
+        padding: 10px;
+        background: #000;
+        font-family: "Courier New", Courier, monospace;
+        white-space: pre-wrap;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th, td {
+        border: 1px solid #004400;
+        padding: 8px;
+        text-align: center;
+      }
       /* Header & Info */
       #game-header {
         display: flex;
@@ -179,12 +226,7 @@
         </div>
         <!-- Command Input Area -->
         <div id="commands">
-          <input
-            type="text"
-            id="command-input"
-            placeholder="Enter command here..."
-            autofocus
-          />
+          <input type="text" id="command-input" placeholder="Enter command here..." autofocus />
           <button id="command-btn">Execute</button>
         </div>
         <!-- Terminal Output -->
@@ -201,6 +243,32 @@
         <div id="event-container">
           <p>No events available. Use command <code>-event list</code> to refresh.</p>
         </div>
+        <!-- Leaderboard Section -->
+        <h3>Leaderboard</h3>
+        <div id="leaderboard-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Player</th>
+                <th>Score</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard">
+              <!-- Leaderboard data will be inserted here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quest Modal -->
+    <div id="quest-modal">
+      <div class="quest-box">
+        <div id="quest-timer">15</div>
+        <div id="quest-question">What is the capital of France?</div>
+        <input type="text" id="quest-answer" placeholder="Your answer here" />
+        <button id="quest-submit">Submit Answer</button>
       </div>
     </div>
 
@@ -228,7 +296,7 @@
         orderBy,
       } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-      // Firebase configuration (replace with your own if needed)
+      // Your Firebase config
       const firebaseConfig = {
         apiKey: "AIzaSyBe3u3Tpynd61CHmCpbzGfLbgQGg0CykSY",
         authDomain: "terminaltycoon.firebaseapp.com",
@@ -236,7 +304,7 @@
         storageBucket: "terminaltycoon.firebasestorage.app",
         messagingSenderId: "919566219014",
         appId: "1:919566219014:web:d9b6dfe5a37cf1e6385087",
-        measurementId: "G-WE0XVY96WT",
+        measurementId: "G-WE0XVY96WT"
       };
 
       // Initialize Firebase
@@ -270,6 +338,28 @@
       const chatInput = document.getElementById("chat-input");
       const chatBtn = document.getElementById("chat-btn");
       const eventContainer = document.getElementById("event-container");
+      const leaderboardBody = document.getElementById("leaderboard");
+
+      // Quest Modal Elements
+      const questModal = document.getElementById("quest-modal");
+      const questTimerEl = document.getElementById("quest-timer");
+      const questQuestionEl = document.getElementById("quest-question");
+      const questAnswerInput = document.getElementById("quest-answer");
+      const questSubmitBtn = document.getElementById("quest-submit");
+
+      // ==== Sample Data for Quests & Leaderboard ====
+      const sampleQuests = [
+        { question: "What is the capital of France?", answer: "Paris" },
+        { question: "In computing, what does CPU stand for?", answer: "Central Processing Unit" },
+        { question: "What protocol is used to securely browse the web?", answer: "HTTPS" },
+      ];
+
+      // Temporary in-memory leaderboard (simulate – replace with Firebase data as needed)
+      let leaderboardData = [
+        { player: "Alice", score: 2500 },
+        { player: "Bob", score: 2000 },
+        { player: "Charlie", score: 1800 },
+      ];
 
       // ==== UI Toggle for Login/Signup ====
       showSignupLink.addEventListener("click", (e) => {
@@ -306,11 +396,16 @@
         try {
           const email = username + "@terminaltycoon.com";
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          // Initialize player data with base stats
           await setDoc(doc(db, "users", userCredential.user.uid), {
             username: username,
             coins: 1000,
             reputation: 0,
             level: 1,
+            totalHacks: 0,
+            missionsCompleted: 0,
+            xp: 0,
+            hackingSkill: 1
           });
           loadGame();
         } catch (error) {
@@ -366,13 +461,15 @@
           userInfo.innerText = "User: " + userData.username;
           updateStats(userData);
           appendOutput("Welcome back, " + userData.username + "!");
-          // Refresh events list when game loads
+          // Refresh events & leaderboard on game load
           loadEvents();
+          loadLeaderboard();
         } else {
           appendOutput("User data not found.");
         }
       }
 
+      // ==== Update Stats Display ====
       function updateStats(data) {
         coinsDisplay.innerText = data.coins;
         reputationDisplay.innerText = data.reputation;
@@ -381,7 +478,6 @@
 
       // ==== Event System (Load & Join Events) ====
       async function loadEvents() {
-        // For simplicity, we assume events are stored in "events" collection with a field "description" and "active" flag.
         const eventsQuery = query(collection(db, "events"));
         let eventsHTML = "";
         onSnapshot(eventsQuery, (snapshot) => {
@@ -395,13 +491,80 @@
         });
       }
 
-      // ==== Command Parser & Commands (Over 100 Commands) ====
+      // ==== Leaderboard Loader (Simulated) ====
+      function loadLeaderboard() {
+        // In a real scenario, query Firebase for sorted user scores.
+        leaderboardBody.innerHTML = "";
+        leaderboardData.sort((a, b) => b.score - a.score);
+        leaderboardData.forEach((entry, index) => {
+          const row = `<tr><td>${index + 1}</td><td>${entry.player}</td><td>${entry.score}</td></tr>`;
+          leaderboardBody.innerHTML += row;
+        });
+      }
+
+      // ==== Quest System ====
+      let currentQuest = null;
+      let questTimer = null;
+      let questTimeRemaining = 15;
+      function startQuest() {
+        // Pick a random quest
+        currentQuest = sampleQuests[Math.floor(Math.random() * sampleQuests.length)];
+        questQuestionEl.innerText = currentQuest.question;
+        questAnswerInput.value = "";
+        questTimeRemaining = 15;
+        questTimerEl.innerText = questTimeRemaining;
+        questModal.style.display = "flex";
+        questTimer = setInterval(() => {
+          questTimeRemaining--;
+          questTimerEl.innerText = questTimeRemaining;
+          if (questTimeRemaining <= 0) {
+            clearInterval(questTimer);
+            questModal.style.display = "none";
+            appendOutput("Quest failed! You ran out of time.");
+          }
+        }, 1000);
+      }
+      questSubmitBtn.addEventListener("click", () => {
+        clearInterval(questTimer);
+        questModal.style.display = "none";
+        const answer = questAnswerInput.value.trim().toLowerCase();
+        if (answer === currentQuest.answer.toLowerCase()) {
+          appendOutput("Quest succeeded! You've earned bonus coins.");
+          rewardPlayer(200);
+        } else {
+          appendOutput("Incorrect answer. Quest failed.");
+        }
+      });
+      function rewardPlayer(amount) {
+        const uid = auth.currentUser.uid;
+        const userDocRef = doc(db, "users", uid);
+        getDoc(userDocRef).then((snap) => {
+          const userData = snap.data();
+          userData.coins += amount;
+          updateDoc(userDocRef, { coins: userData.coins });
+          updateStats(userData);
+        });
+      }
+
+      // ==== Helper: Level Requirement Checker ====
+      function requireLevel(userData, reqLevel, cmdName) {
+        if (userData.level < reqLevel) {
+          return `Command ${cmdName} locked. Requires level ${reqLevel}.`;
+        }
+        return null;
+      }
+
+      // ==== Commands System with 50 Commands ====
       const commands = {
-        "-help": (params) => {
+        // 1. -help: List all available commands
+        "-help": (params, userData) => {
           let list = "Available Commands:\n";
-          Object.keys(commands).forEach((cmd) => (list += cmd + "\n"));
+          Object.keys(commands).forEach((cmd) => {
+            list += cmd + "\n";
+          });
           return list;
         },
+        // 2. -bet: Gamble coins
         "-bet": async (params, userData) => {
           if (params.length < 1) return "Usage: -bet [amount]";
           const betAmount = parseInt(params[0]);
@@ -416,149 +579,262 @@
             return `You lost ${betAmount} coins.`;
           }
         },
+        // 3. -hack: Simulate a hack on a target
         "-hack": (params) => {
           if (params.length < 1) return "Usage: -hack [target]";
           return `Hacking ${params[0]}... Success! (Simulated)`;
         },
+        // 4. -shop: Display shop items
         "-shop": () => "Shop: [Basic Laptop, VPN, Hacker Tool Kit]",
-        "-buy": (params) => (params.length < 1 ? "Usage: -buy [item]" : `You bought ${params[0]}.`),
-        "-sell": (params) => (params.length < 1 ? "Usage: -sell [item]" : `You sold ${params[0]}.`),
-        "-upgrade": (params) => (params.length < 1 ? "Usage: -upgrade [tool]" : `Upgrading ${params[0]}... Done!`),
-        "-faction": (params) => (params.length < 1 ? "Usage: -faction [name]" : `You joined faction ${params[0]}.`),
-        "-mission": (params) => (params.length < 1 ? "Usage: -mission [accept/complete]" : `Mission ${params[0]} executed.`),
-        "-decryption": (params) => (params.length < 1 ? "Usage: -decryption [file]" : `Decrypting ${params[0]}... Data unlocked!`),
-        "-attack": (params) => (params.length < 1 ? "Usage: -attack [player]" : `Attacking ${params[0]}... Duel simulated.`),
-        "-defend": () => "Defensive measures activated.",
-        "-spy": (params) => (params.length < 1 ? "Usage: -spy [target]" : `Spying on ${params[0]}... Intel gathered.`),
-        "-spyreport": () => "Spy Report: All systems nominal.",
-        "-travel": (params) => (params.length < 1 ? "Usage: -travel [zone]" : `Traveling to ${params[0]}... Zone reached.`),
-        "-loot": (params) => (params.length < 1 ? "Usage: -loot [target]" : `Looting ${params[0]}... Items acquired.`),
-        "-chat": (params) => (params.length < 1 ? "Usage: -chat [message]" : `Chat message: ${params.join(" ")}`),
-        "-rank": () => "Leaderboard: (Simulated Rankings)",
-        "-stats": () => "Detailed stats: (Simulated Stats)",
-        "-profile": () => "Profile: (Simulated Profile Info)",
+        // 5. -buy: Purchase an item
+        "-buy": (params) => params.length < 1 ? "Usage: -buy [item]" : `You bought ${params[0]}.`,
+        // 6. -sell: Sell an item
+        "-sell": (params) => params.length < 1 ? "Usage: -sell [item]" : `You sold ${params[0]}.`,
+        // 7. -upgrade: Upgrade a tool
+        "-upgrade": (params) => params.length < 1 ? "Usage: -upgrade [tool]" : `Upgrading ${params[0]}... Done!`,
+        // 8. -faction: Join a faction
+        "-faction": (params) => params.length < 1 ? "Usage: -faction [name]" : `You joined faction ${params[0]}.`,
+        // 9. -mission: Execute a mission
+        "-mission": (params) => params.length < 1 ? "Usage: -mission [accept/complete]" : `Mission ${params[0]} executed. (Simulated Mission)`,
+        // 10. -duel: Initiate a PvP hacking duel
+        "-duel": (params) => "Duel command executed. (Simulated PvP)",
+        // 11. -info: Show detailed player stats
+        "-info": async (params, userData) => {
+          return `Player: ${userData.username}\nCoins: ${userData.coins}\nReputation: ${userData.reputation}\nLevel: ${userData.level}\nTotal Hacks: ${userData.totalHacks}\nMissions Completed: ${userData.missionsCompleted}\nXP: ${userData.xp}\nHacking Skill: ${userData.hackingSkill}`;
+        },
+        // 12. -quest: Start a quest (timed question)
+        "-quest": () => {
+          startQuest();
+          return "Quest started! Answer the question in the popup within 15 seconds.";
+        },
+        // 13. -chat: Send a chat message via command
+        "-chat": (params) => params.length < 1 ? "Usage: -chat [message]" : `Chat: ${params.join(" ")}`,
+        // 14. -logout: Log out from the game
         "-logout": () => {
           signOut(auth);
           location.reload();
           return "Logging out...";
         },
-        "-ai": (params) => "AI Response: How can I assist you today?",
-        "-scan": (params) => (params.length < 1 ? "Usage: -scan [target]" : `Scanning ${params[0]}... Vulnerabilities found.`),
-        "-analyze": (params) => (params.length < 1 ? "Usage: -analyze [target]" : `Analyzing ${params[0]}... Analysis complete.`),
-        "-bypass": (params) => (params.length < 1 ? "Usage: -bypass [target]" : `Bypassing ${params[0]}... Access granted.`),
-        "-firewall": () => "Personal firewall activated.",
-        "-encrypt": (params) => (params.length < 1 ? "Usage: -encrypt [data]" : `Encrypting ${params[0]}... Secure.`),
-        "-decrypt": (params) => (params.length < 1 ? "Usage: -decrypt [data]" : `Decrypting ${params[0]}... Data revealed.`),
-        "-compile": () => "Compiling custom hacking script... Complete.",
-        "-debug": () => "Debugging script... No errors found.",
-        "-trace": (params) => (params.length < 1 ? "Usage: -trace [target]" : `Tracing ${params[0]}... Location identified.`),
-        "-ping": (params) => (params.length < 1 ? "Usage: -ping [target]" : `Pinging ${params[0]}... Response time: ${Math.floor(Math.random() * 100)}ms`),
-        "-downtime": (params) => "Downtime history: (Simulated Data)",
-        "-uptime": () => "Uptime: 99.99% (Simulated Data)",
-        "-backup": () => "Backup created successfully.",
-        "-restore": () => "System restored from backup.",
-        "-update": () => "Hacking tools updated to latest version.",
-        "-research": (params) => (params.length < 1 ? "Usage: -research [topic]" : `Researching ${params.join(" ")}... Findings loaded.`),
-        "-exploit": (params) => (params.length < 1 ? "Usage: -exploit [vulnerability]" : `Exploiting ${params[0]}... Vulnerability exploited.`),
-        "-brute": () => "Launching brute-force attack... Password cracked.",
-        "-social": () => "Social engineering attack initiated.",
-        "-firestorm": () => "Firestorm attack launched on high–value target.",
-        "-distract": () => "Diversion created to mask your operations.",
-        "-reroute": () => "Traffic rerouted to avoid detection.",
-        "-sniff": () => "Network sniffing in progress... Data captured.",
-        "-capture": () => "Data packets captured successfully.",
-        "-anonymize": () => "Anonymizing connection... Identity hidden.",
-        "-vpn": () => "VPN enabled.",
-        "-proxy": () => "Proxy chain activated.",
-        "-data": () => "Downloading target data... Complete.",
-        "-upload": (params) => (params.length < 1 ? "Usage: -upload [file]" : `Uploading ${params[0]}... Done.`),
-        "-crack": () => "Cracking encryption... Success.",
-        "-botnet": () => "Botnet deployed to overwhelm target.",
-        "-command": (params) => (params.length < 1 ? "Usage: -command [instruction]" : `Botnet executing command: ${params.join(" ")}`),
-        "-infiltrate": () => "Infiltrating secure system... Access granted.",
-        "-override": () => "Security protocols overridden.",
-        "-reboot": () => "System rebooted.",
-        "-shutdown": () => "Target system shutting down...",
-        "-pingflood": () => "Ping flood attack initiated.",
-        "-dos": () => "DoS attack launched.",
-        "-ddos": () => "DDoS attack in progress.",
-        "-spoof": () => "IP address spoofed.",
-        "-redirect": () => "Network traffic redirected.",
-        "-malware": () => "Malware deployed in target system.",
-        "-ransom": () => "Ransom demand issued.",
-        "-decryptor": () => "Decryptor executed to remove ransomware.",
-        "-bot": () => "AI–driven bot summoned.",
-        "-script": (params) => (params.length < 1 ? "Usage: -script [name]" : `Running script: ${params[0]}`),
-        "-compileai": () => "Compiling AI–assisted script... Complete.",
-        "-simulate": () => "Simulating hacking scenario...",
-        "-debugai": () => "Debugging AI module... No issues found.",
-        "-learn": () => "Learning algorithm activated to improve skills.",
-        "-upgradeai": () => "AI assistant upgraded.",
-        "-codex": () => "Accessing digital codex... Secrets revealed.",
-        "-library": () => "Opening digital library... Cyber lore loaded.",
-        "-forum": () => "Accessing hacker forum... Strategies and gossip loaded.",
-        "-message": (params) => (params.length < 2 ? "Usage: -message [user] [message]" : `Private message sent to ${params[0]}.`),
-        "-broadcast": (params) => (params.length < 1 ? "Usage: -broadcast [message]" : `Broadcasting: ${params.join(" ")}`),
-        "-notify": () => "Checking notifications... None.",
-        "-alert": (params) => (params.length < 1 ? "Usage: -alert [message]" : `Alert sent: ${params.join(" ")}`),
-        "-log": () => "Displaying recent system log... (Simulated Log)",
-        "-history": () => "Command history: (Simulated History)",
-        "-analyzeuser": (params) => (params.length < 1 ? "Usage: -analyzeuser [username]" : `Analysis of ${params[0]} complete: (Simulated Data)`),
-        "-track": (params) => (params.length < 1 ? "Usage: -track [target]" : `Tracking ${params[0]}... Location: (Simulated)`),
-        "-map": () => "Displaying network map... (Simulated Map)",
-        "-geo": () => "Geographical data: (Simulated Data)",
-        "-datamine": () => "Data mining in progress... Insights acquired.",
-        "-extract": (params) => (params.length < 1 ? "Usage: -extract [target]" : `Extracting files from ${params[0]}... Done.`),
-        "-embed": (params) => (params.length < 1 ? "Usage: -embed [code]" : `Embedding code snippet: ${params[0]}`),
-        "-overclock": () => "System overclocked for extra speed.",
-        "-stabilize": () => "System stabilized.",
-        "-boost": () => "Temporary boost activated.",
-        "-disrupt": () => "Target system disrupted.",
-        "-divert": () => "Resources diverted from defense.",
-        "-stealth": () => "Stealth mode activated.",
-        "-recon": () => "Conducting reconnaissance... Intel gathered.",
-        "-intel": () => "Gathering in-depth intelligence... Complete.",
-        "-predict": () => "Predictive analytics complete: (Simulated Forecast)",
-        "-invest": (params) => (params.length < 1 ? "Usage: -invest [amount]" : `Invested ${params[0]} coins in the market.`),
-        "-rebirth": () => "Rebirth initiated: Progress reset with permanent bonuses.",
-        // Event commands:
-        "-event": async (params) => {
-          if (params.length < 1) return "Usage: -event [list/join/create]";
-          const action = params[0].toLowerCase();
-          if (action === "list") {
-            // Simply call loadEvents to refresh event list
-            loadEvents();
-            return "Refreshing event list...";
-          } else if (action === "join") {
-            if (params.length < 2) return "Usage: -event join [eventID]";
-            // For demo, we simulate joining by incrementing a counter in the event doc.
-            const eventId = params[1];
-            const eventRef = doc(db, "events", eventId);
-            const eventSnap = await getDoc(eventRef);
-            if (!eventSnap.exists()) return "Event not found.";
-            let evData = eventSnap.data();
-            evData.participants = (evData.participants || 0) + 1;
-            await updateDoc(eventRef, { participants: evData.participants });
-            loadEvents();
-            return `Joined event ${eventId}. Participants: ${evData.participants}`;
-          } else if (action === "create") {
-            // Create a new event (for testing/demo)
-            const description = params.slice(1).join(" ") || "A new cyber event";
-            const newEvent = await addDoc(collection(db, "events"), {
-              description,
-              active: true,
-              participants: 1,
-            });
-            loadEvents();
-            return `Event created with ID: ${newEvent.id}`;
-          } else {
-            return "Unknown event action. Use list, join, or create.";
-          }
+        // 15. -phish: Simulate a phishing attack (Level 2+)
+        "-phish": (params, userData) => {
+          let lock = requireLevel(userData, 2, "-phish");
+          if (lock) return lock;
+          return "Phishing attack executed. Target credentials compromised! (Simulated)";
         },
+        // 16. -ddos: Launch a DDoS attack (Level 3+)
+        "-ddos": (params, userData) => {
+          let lock = requireLevel(userData, 3, "-ddos");
+          if (lock) return lock;
+          return "DDoS attack launched! Target overwhelmed with traffic. (Simulated)";
+        },
+        // 17. -exploit: Exploit a vulnerability (Level 2+)
+        "-exploit": (params, userData) => {
+          let lock = requireLevel(userData, 2, "-exploit");
+          if (lock) return lock;
+          return params.length < 1 ? "Usage: -exploit [vulnerability]" : `Exploiting ${params[0]}... Vulnerability exploited!`;
+        },
+        // 18. -decrypt: Decrypt secured files (Level 1+)
+        "-decrypt": (params, userData) => {
+          let lock = requireLevel(userData, 1, "-decrypt");
+          if (lock) return lock;
+          return params.length < 1 ? "Usage: -decrypt [file]" : `Decrypting ${params[0]}... Data revealed!`;
+        },
+        // 19. -encrypt: Encrypt data (Level 1+)
+        "-encrypt": (params, userData) => {
+          let lock = requireLevel(userData, 1, "-encrypt");
+          if (lock) return lock;
+          return params.length < 1 ? "Usage: -encrypt [data]" : `Encrypting ${params[0]}... Data secured!`;
+        },
+        // 20. -firewall: Activate personal firewall (Level 1+)
+        "-firewall": (params, userData) => {
+          let lock = requireLevel(userData, 1, "-firewall");
+          if (lock) return lock;
+          return "Firewall activated. Incoming threats filtered.";
+        },
+        // 21. -scan: Scan a target (Level 1+)
+        "-scan": (params, userData) => {
+          let lock = requireLevel(userData, 1, "-scan");
+          if (lock) return lock;
+          return params.length < 1 ? "Usage: -scan [target]" : `Scanning ${params[0]}... Vulnerabilities identified.`;
+        },
+        // 22. -analyze: Analyze a target system (Level 1+)
+        "-analyze": (params, userData) => {
+          let lock = requireLevel(userData, 1, "-analyze");
+          if (lock) return lock;
+          return params.length < 1 ? "Usage: -analyze [target]" : `Analyzing ${params[0]}... Analysis complete.`;
+        },
+        // 23. -spoof: Spoof your IP address (Level 2+)
+        "-spoof": (params, userData) => {
+          let lock = requireLevel(userData, 2, "-spoof");
+          if (lock) return lock;
+          return "IP address spoofed. Your trace is now hidden.";
+        },
+        // 24. -proxy: Activate a proxy chain (Level 1+)
+        "-proxy": (params, userData) => {
+          let lock = requireLevel(userData, 1, "-proxy");
+          if (lock) return lock;
+          return "Proxy chain activated. Connection rerouted.";
+        },
+        // 25. -vpn: Enable a VPN (Level 1+)
+        "-vpn": (params, userData) => {
+          let lock = requireLevel(userData, 1, "-vpn");
+          if (lock) return lock;
+          return "VPN enabled. Your identity is now anonymous.";
+        },
+        // 26. -infiltrate: Breach a secure system (Level 3+)
+        "-infiltrate": (params, userData) => {
+          let lock = requireLevel(userData, 3, "-infiltrate");
+          if (lock) return lock;
+          return params.length < 1 ? "Usage: -infiltrate [system]" : `Infiltrating ${params[0]}... Access granted.`;
+        },
+        // 27. -sabotage: Disrupt a target system (Level 3+)
+        "-sabotage": (params, userData) => {
+          let lock = requireLevel(userData, 3, "-sabotage");
+          if (lock) return lock;
+          return params.length < 1 ? "Usage: -sabotage [target]" : `Sabotaging ${params[0]}... Systems destabilized.`;
+        },
+        // 28. -bruteforce: Brute-force attack (Level 2+)
+        "-bruteforce": (params, userData) => {
+          let lock = requireLevel(userData, 2, "-bruteforce");
+          if (lock) return lock;
+          return params.length < 1 ? "Usage: -bruteforce [target]" : `Launching brute-force attack on ${params[0]}... Password cracked.`;
+        },
+        // 29. -social: Social engineering (Level 2+)
+        "-social": (params, userData) => {
+          let lock = requireLevel(userData, 2, "-social");
+          if (lock) return lock;
+          return "Social engineering attack initiated. Target manipulated.";
+        },
+        // 30. -bypass: Bypass security protocols (Level 1+)
+        "-bypass": (params, userData) => {
+          let lock = requireLevel(userData, 1, "-bypass");
+          if (lock) return lock;
+          return params.length < 1 ? "Usage: -bypass [system]" : `Bypassing ${params[0]}... Access granted.`;
+        },
+        // 31. -trace: Trace a target's location (Level 1+)
+        "-trace": (params, userData) => {
+          let lock = requireLevel(userData, 1, "-trace");
+          if (lock) return lock;
+          return params.length < 1 ? "Usage: -trace [target]" : `Tracing ${params[0]}... Location identified.`;
+        },
+        // 32. -ping: Ping a target (Level 1+)
+        "-ping": (params, userData) => {
+          let lock = requireLevel(userData, 1, "-ping");
+          if (lock) return lock;
+          return params.length < 1 ? "Usage: -ping [target]" : `Pinging ${params[0]}... Response time: ${Math.floor(Math.random() * 100)}ms`;
+        },
+        // 33. -log: Display system logs (Level 1+)
+        "-log": (params, userData) => {
+          let lock = requireLevel(userData, 1, "-log");
+          if (lock) return lock;
+          return "Displaying recent system logs... (Simulated Log)";
+        },
+        // 34. -history: Show command history (Level 1+)
+        "-history": (params, userData) => {
+          let lock = requireLevel(userData, 1, "-history");
+          if (lock) return lock;
+          return "Command history: (Simulated History)";
+        },
+        // 35. -update: Update hacking tools (Level 1+)
+        "-update": (params, userData) => {
+          let lock = requireLevel(userData, 1, "-update");
+          if (lock) return lock;
+          return "Hacking tools updated to the latest version.";
+        },
+        // 36. -compile: Compile a custom hacking script (Level 1+)
+        "-compile": (params, userData) => {
+          let lock = requireLevel(userData, 1, "-compile");
+          if (lock) return lock;
+          return "Compiling custom hacking script... Complete.";
+        },
+        // 37. -debug: Debug your script (Level 1+)
+        "-debug": (params, userData) => {
+          let lock = requireLevel(userData, 1, "-debug");
+          if (lock) return lock;
+          return "Debugging script... No errors found.";
+        },
+        // 38. -simulate: Run a simulation (Level 2+)
+        "-simulate": (params, userData) => {
+          let lock = requireLevel(userData, 2, "-simulate");
+          if (lock) return lock;
+          return "Simulating hacking scenario... (Simulated)";
+        },
+        // 39. -recon: Perform reconnaissance (Level 1+)
+        "-recon": (params, userData) => {
+          let lock = requireLevel(userData, 1, "-recon");
+          if (lock) return lock;
+          return "Conducting reconnaissance... Intel gathered.";
+        },
+        // 40. -intel: Gather in-depth intelligence (Level 1+)
+        "-intel": (params, userData) => {
+          let lock = requireLevel(userData, 1, "-intel");
+          if (lock) return lock;
+          return "Gathering in-depth intelligence... Complete.";
+        },
+        // 41. -research: Research new hacking techniques (Level 1+)
+        "-research": (params, userData) => {
+          let lock = requireLevel(userData, 1, "-research");
+          if (lock) return lock;
+          return params.length < 1 ? "Usage: -research [topic]" : `Researching ${params.join(" ")}... Findings loaded.`;
+        },
+        // 42. -datamine: Extract data insights (Level 2+)
+        "-datamine": (params, userData) => {
+          let lock = requireLevel(userData, 2, "-datamine");
+          if (lock) return lock;
+          return "Data mining in progress... Insights acquired.";
+        },
+        // 43. -extract: Extract files from a target (Level 1+)
+        "-extract": (params, userData) => {
+          let lock = requireLevel(userData, 1, "-extract");
+          if (lock) return lock;
+          return params.length < 1 ? "Usage: -extract [target]" : `Extracting files from ${params[0]}... Done.`;
+        },
+        // 44. -embed: Embed a code snippet (Level 1+)
+        "-embed": (params, userData) => {
+          let lock = requireLevel(userData, 1, "-embed");
+          if (lock) return lock;
+          return params.length < 1 ? "Usage: -embed [code]" : `Embedding code snippet: ${params[0]}`;
+        },
+        // 45. -overclock: Boost system speed (Level 2+)
+        "-overclock": (params, userData) => {
+          let lock = requireLevel(userData, 2, "-overclock");
+          if (lock) return lock;
+          return "System overclocked for extra speed.";
+        },
+        // 46. -stealth: Enable stealth mode (Level 2+)
+        "-stealth": (params, userData) => {
+          let lock = requireLevel(userData, 2, "-stealth");
+          if (lock) return lock;
+          return "Stealth mode activated. Your actions remain undetected.";
+        },
+        // 47. -divert: Divert network traffic (Level 2+)
+        "-divert": (params, userData) => {
+          let lock = requireLevel(userData, 2, "-divert");
+          if (lock) return lock;
+          return "Network traffic diverted to mask your operations.";
+        },
+        // 48. -anonymize: Anonymize your connection (Level 2+)
+        "-anonymize": (params, userData) => {
+          let lock = requireLevel(userData, 2, "-anonymize");
+          if (lock) return lock;
+          return "Connection anonymized. Your identity is concealed.";
+        },
+        // 49. -upgradeai: Upgrade your AI assistant (Level 3+)
+        "-upgradeai": (params, userData) => {
+          let lock = requireLevel(userData, 3, "-upgradeai");
+          if (lock) return lock;
+          return "AI assistant upgraded. New capabilities unlocked.";
+        },
+        // 50. -codex: Access the digital codex for secrets (Level 1+)
+        "-codex": (params, userData) => {
+          let lock = requireLevel(userData, 1, "-codex");
+          if (lock) return lock;
+          return "Accessing digital codex... Secrets revealed.";
+        }
       };
 
-      // ==== Generate Extra Dummy Commands to Reach 100+ ====
-      for (let i = 1; i <= 20; i++) {
+      // ==== Generate Extra Dummy Commands (Optional) ====
+      for (let i = 1; i <= 10; i++) {
         commands["-extra" + i] = (params) => `Extra command ${i} executed with params: ${params.join(" ")}`;
       }
 
@@ -574,11 +850,10 @@
         const userDocRef = doc(db, "users", uid);
         const userDocSnap = await getDoc(userDocRef);
         let userData = userDocSnap.data();
-
         let response = "";
         if (commands.hasOwnProperty(cmd)) {
           response = await commands[cmd](params, userData, userDocRef);
-          // For commands that modify coins, update Firestore
+          // Update coins if modified by commands
           await updateDoc(userDocRef, { coins: userData.coins });
           updateStats(userData);
         } else {
